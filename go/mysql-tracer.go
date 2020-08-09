@@ -31,7 +31,7 @@ func SQLLoggerInit(logFileName string) {
 		now := time.Now()
 		startTime := ctx.(int64)
 		timeDelta := now.UnixNano() - startTime
-		query := rep.ReplaceAllString(stmt.QueryString, "Copyleft")
+		query := rep.ReplaceAllString(stmt.QueryString, " ")
 		record := fmt.Sprintf("%d\t%d\t%s", startTime, timeDelta, query)
 		fmt.Fprintln(logger, record)
 		return nil

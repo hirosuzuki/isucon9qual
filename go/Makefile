@@ -22,3 +22,6 @@ bench:
 
 login:
 	ssh isucon@${SRVIP}
+
+parsesql:
+	ssh isucon@${SRVIP} cat /tmp/sql.log | ./parse_sql_log.py

@@ -30,6 +30,8 @@ github.com/newrelic/go-agent v3.8.1+incompatible h1:8TAEekJseggmwfn79CjoV308PyNl
 github.com/newrelic/go-agent v3.8.1+incompatible/go.mod h1:a8Fv1b/fYhFSReoTU6HDkTYIMZeSVNffmoS726Y0LzQ=
 github.com/newrelic/go-agent/v3 v3.8.1 h1:PzM7tOO7ojBxHxEXY/AQJ8bAKrM9vFeFbHPkTaVo8+Q=
 github.com/newrelic/go-agent/v3 v3.8.1/go.mod h1:1A1dssWBwzB7UemzRU6ZVaGDsI+cEn5/bNxI0wiYlIc=
+github.com/pkg/profile v1.5.0 h1:042Buzk+NhDI+DeSAA62RwJL8VAuZUMQZUjCsRz1Mug=
+github.com/pkg/profile v1.5.0/go.mod h1:qBsxPvzyUincmltOk6iyRVxHYg4adc0OFOv72ZdLa18=
 github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4/go.mod h1:xMI15A0UPsDsEKsMN9yxemIoYk6Tm2C1GtYGdfGttqA=
 github.com/shogo82148/go-sql-proxy v0.2.0 h1:ddBvghZVQv+Sm4zpFCGnRVHkLe5arwLWx3o5KPKhX2I=
 github.com/shogo82148/go-sql-proxy v0.2.0/go.mod h1:48I3ZuQ9xim8OG+QpkcYLiRy4w6q/gjol/MwoTlSFrY=

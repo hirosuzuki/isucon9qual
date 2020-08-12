@@ -12,6 +12,10 @@ deploy:
 	scp isucari isucon@${SRVIP}:/home/isucon/isucari/webapp/go/isucari
 	ssh isucon@${SRVIP} sudo systemctl start isucari.golang.service
 
+deploy-service:
+	cat isucari.golang.service | ssh isucon@${SRVIP} "sudo tee /etc/systemd/system/isucari.golang.service"
+	ssh isucon@${SRVIP} sudo systemctl daemon-reload
+
 kataribe:
 	ssh isucon@${SRVIP} cat /var/log/nginx/kataribe.log | ${HOME}/go/bin/kataribe
 

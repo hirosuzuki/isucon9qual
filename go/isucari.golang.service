@@ -7,7 +7,7 @@ EnvironmentFile=/home/isucon/env.sh
 
 ExecStart = /home/isucon/isucari/webapp/go/isucari
 
-Restart   = always
+Restart   = no
 Type      = simple
 User      = isucon
 Group     = isucon

@@ -16,6 +16,10 @@ deploy-service:
 	cat isucari.golang.service | ssh isucon@${SRVIP} "sudo tee /etc/systemd/system/isucari.golang.service"
 	ssh isucon@${SRVIP} sudo systemctl daemon-reload
 
+fetch-prof:
+	ssh isucon@${SRVIP} sudo pkill -INT isucari || true
+	scp isucon@${SRVIP}:/tmp/cpu.pprof cpu.pprof
+
 kataribe:
 	ssh isucon@${SRVIP} cat /var/log/nginx/kataribe.log | ${HOME}/go/bin/kataribe
 

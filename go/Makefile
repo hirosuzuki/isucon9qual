@@ -20,6 +20,9 @@ fetch-prof:
 	ssh isucon@${SRVIP} sudo pkill -INT isucari || true
 	scp isucon@${SRVIP}:/tmp/cpu.pprof cpu.pprof
 
+pprof:
+	go tool pprof -http="127.0.0.1:8020" cpu.pprof
+
 kataribe:
 	ssh isucon@${SRVIP} cat /var/log/nginx/kataribe.log | ${HOME}/go/bin/kataribe
 

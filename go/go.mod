@@ -1,4 +1,4 @@
-module main
+module isucari
 
 go 1.14
 
@@ -10,4 +10,5 @@ require (
 	github.com/shogo82148/go-sql-proxy v0.2.0
 	goji.io v2.0.2+incompatible
 	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4
+	google.golang.org/appengine v1.6.6 // indirect
 )

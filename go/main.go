@@ -412,7 +412,7 @@ func getUserSimpleByID(q sqlx.Queryer, userID int64) (userSimple UserSimple, err
 }
 
 func getCategoryByID(q sqlx.Queryer, categoryID int) (category Category, err error) {
-	err = sqlx.Get(q, &category, "SELECT * FROM `categories` WHERE `id` = ?", categoryID)
+	category = categoryMap[categoryID]
 	if category.ParentID != 0 {
 		parentCategory, err := getCategoryByID(q, category.ParentID)
 		if err != nil {
@@ -456,6 +456,9 @@ func getIndex(w http.ResponseWriter, r *http.Request) {
 	templates.ExecuteTemplate(w, "index.html", struct{}{})
 }
 
+var allCategories []Category = []Category{}
+var categoryMap map[int]Category = make(map[int]Category)
+
 func postInitialize(w http.ResponseWriter, r *http.Request) {
 	ri := reqInitialize{}
 
@@ -473,6 +476,13 @@ func postInitialize(w http.ResponseWriter, r *http.Request) {
 		outputErrorMsg(w, http.StatusInternalServerError, "exec init.sh error")
 		return
 	}
+
+	dbx.Select(&allCategories, "SELECT * FROM `categories`")
+	log.Printf("allCategories: %v\n", allCategories)
+	for _, category := range allCategories {
+		categoryMap[category.ID] = category
+	}
+	log.Printf("categoryMap: %v\n", categoryMap)
 
 	_, err = dbx.Exec(
 		"INSERT INTO `configs` (`name`, `val`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `val` = VALUES(`val`)",
@@ -2156,15 +2166,7 @@ func getSettings(w http.ResponseWriter, r *http.Request) {
 
 	ress.PaymentServiceURL = getPaymentServiceURL()
 
-	categories := []Category{}
-
-	err := dbx.Select(&categories, "SELECT * FROM `categories`")
-	if err != nil {
-		log.Print(err)
-		outputErrorMsg(w, http.StatusInternalServerError, "db error")
-		return
-	}
-	ress.Categories = categories
+	ress.Categories = allCategories
 
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	json.NewEncoder(w).Encode(ress)

@@ -9,11 +9,13 @@ import (
 )
 
 const (
+	// IsucariAPIToken ...
 	IsucariAPIToken = "Bearer 75ugk2m37a750fwir5xr-22l6h4wmue1bwrubzwd0"
 
 	userAgent = "isucon9-qualify-webapp"
 )
 
+// APIPaymentServiceTokenReq ...
 type APIPaymentServiceTokenReq struct {
 	ShopID string `json:"shop_id"`
 	Token  string `json:"token"`
@@ -21,10 +23,12 @@ type APIPaymentServiceTokenReq struct {
 	Price  int    `json:"price"`
 }
 
+// APIPaymentServiceTokenRes ...
 type APIPaymentServiceTokenRes struct {
 	Status string `json:"status"`
 }
 
+// APIShipmentCreateReq ...
 type APIShipmentCreateReq struct {
 	ToAddress   string `json:"to_address"`
 	ToName      string `json:"to_name"`
@@ -32,24 +36,29 @@ type APIShipmentCreateReq struct {
 	FromName    string `json:"from_name"`
 }
 
+// APIShipmentCreateRes ...
 type APIShipmentCreateRes struct {
 	ReserveID   string `json:"reserve_id"`
 	ReserveTime int64  `json:"reserve_time"`
 }
 
+// APIShipmentRequestReq ...
 type APIShipmentRequestReq struct {
 	ReserveID string `json:"reserve_id"`
 }
 
+// APIShipmentStatusRes ...
 type APIShipmentStatusRes struct {
 	Status      string `json:"status"`
 	ReserveTime int64  `json:"reserve_time"`
 }
 
+// APIShipmentStatusReq ...
 type APIShipmentStatusReq struct {
 	ReserveID string `json:"reserve_id"`
 }
 
+// APIPaymentToken ...
 func APIPaymentToken(paymentURL string, param *APIPaymentServiceTokenReq) (*APIPaymentServiceTokenRes, error) {
 	b, _ := json.Marshal(param)
 
@@ -84,6 +93,7 @@ func APIPaymentToken(paymentURL string, param *APIPaymentServiceTokenReq) (*APIP
 	return pstr, nil
 }
 
+// APIShipmentCreate ...
 func APIShipmentCreate(shipmentURL string, param *APIShipmentCreateReq) (*APIShipmentCreateRes, error) {
 	b, _ := json.Marshal(param)
 
@@ -119,6 +129,7 @@ func APIShipmentCreate(shipmentURL string, param *APIShipmentCreateReq) (*APIShi
 	return scr, nil
 }
 
+// APIShipmentRequest ...
 func APIShipmentRequest(shipmentURL string, param *APIShipmentRequestReq) ([]byte, error) {
 	b, _ := json.Marshal(param)
 
@@ -148,6 +159,7 @@ func APIShipmentRequest(shipmentURL string, param *APIShipmentRequestReq) ([]byt
 	return ioutil.ReadAll(res.Body)
 }
 
+// APIShipmentStatus ...
 func APIShipmentStatus(shipmentURL string, param *APIShipmentStatusReq) (*APIShipmentStatusRes, error) {
 	b, _ := json.Marshal(param)
 

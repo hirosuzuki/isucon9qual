@@ -27,36 +27,59 @@ import (
 const (
 	sessionName = "session_isucari"
 
-	DefaultPaymentServiceURL  = "http://localhost:5555"
+	// DefaultPaymentServiceURL ...
+	DefaultPaymentServiceURL = "http://localhost:5555"
+	// DefaultShipmentServiceURL ...
 	DefaultShipmentServiceURL = "http://localhost:7000"
 
-	ItemMinPrice    = 100
-	ItemMaxPrice    = 1000000
+	// ItemMinPrice ...
+	ItemMinPrice = 100
+	// ItemMaxPrice ...
+	ItemMaxPrice = 1000000
+	// ItemPriceErrMsg ...
 	ItemPriceErrMsg = "商品価格は100ｲｽｺｲﾝ以上、1,000,000ｲｽｺｲﾝ以下にしてください"
 
-	ItemStatusOnSale  = "on_sale"
+	// ItemStatusOnSale ...
+	ItemStatusOnSale = "on_sale"
+	// ItemStatusTrading ...
 	ItemStatusTrading = "trading"
+	// ItemStatusSoldOut ...
 	ItemStatusSoldOut = "sold_out"
-	ItemStatusStop    = "stop"
-	ItemStatusCancel  = "cancel"
+	// ItemStatusStop ...
+	ItemStatusStop = "stop"
+	// ItemStatusCancel ...
+	ItemStatusCancel = "cancel"
 
+	// PaymentServiceIsucariAPIKey ...
 	PaymentServiceIsucariAPIKey = "a15400e46c83635eb181-946abb51ff26a868317c"
+	// PaymentServiceIsucariShopID ...
 	PaymentServiceIsucariShopID = "11"
 
+	// TransactionEvidenceStatusWaitShipping ...
 	TransactionEvidenceStatusWaitShipping = "wait_shipping"
-	TransactionEvidenceStatusWaitDone     = "wait_done"
-	TransactionEvidenceStatusDone         = "done"
+	// TransactionEvidenceStatusWaitDone ...
+	TransactionEvidenceStatusWaitDone = "wait_done"
+	// TransactionEvidenceStatusDone ...
+	TransactionEvidenceStatusDone = "done"
 
-	ShippingsStatusInitial    = "initial"
+	// ShippingsStatusInitial ...
+	ShippingsStatusInitial = "initial"
+	// ShippingsStatusWaitPickup ...
 	ShippingsStatusWaitPickup = "wait_pickup"
-	ShippingsStatusShipping   = "shipping"
-	ShippingsStatusDone       = "done"
+	// ShippingsStatusShipping ...
+	ShippingsStatusShipping = "shipping"
+	// ShippingsStatusDone ...
+	ShippingsStatusDone = "done"
 
-	BumpChargeSeconds = 3 * time.Second
+	// BumpChargeSecond ...
+	BumpChargeSecond = 3 * time.Second
 
-	ItemsPerPage        = 48
+	// ItemsPerPage ...
+	ItemsPerPage = 48
+	// TransactionsPerPage ...
 	TransactionsPerPage = 10
 
+	// BcryptCost ...
 	BcryptCost = 10
 )
 
@@ -66,11 +89,13 @@ var (
 	store     sessions.Store
 )
 
+// Config ...
 type Config struct {
 	Name string `json:"name" db:"name"`
 	Val  string `json:"val" db:"val"`
 }
 
+// User ...
 type User struct {
 	ID             int64     `json:"id" db:"id"`
 	AccountName    string    `json:"account_name" db:"account_name"`
@@ -81,12 +106,14 @@ type User struct {
 	CreatedAt      time.Time `json:"-" db:"created_at"`
 }
 
+// UserSimple ...
 type UserSimple struct {
 	ID           int64  `json:"id"`
 	AccountName  string `json:"account_name"`
 	NumSellItems int    `json:"num_sell_items"`
 }
 
+// Item ...
 type Item struct {
 	ID          int64     `json:"id" db:"id"`
 	SellerID    int64     `json:"seller_id" db:"seller_id"`
@@ -101,6 +128,7 @@ type Item struct {
 	UpdatedAt   time.Time `json:"-" db:"updated_at"`
 }
 
+// ItemSimple ...
 type ItemSimple struct {
 	ID         int64       `json:"id"`
 	SellerID   int64       `json:"seller_id"`
@@ -114,6 +142,7 @@ type ItemSimple struct {
 	CreatedAt  int64       `json:"created_at"`
 }
 
+// ItemDetail ...
 type ItemDetail struct {
 	ID                        int64       `json:"id"`
 	SellerID                  int64       `json:"seller_id"`
@@ -133,6 +162,7 @@ type ItemDetail struct {
 	CreatedAt                 int64       `json:"created_at"`
 }
 
+// TransactionEvidence ...
 type TransactionEvidence struct {
 	ID                 int64     `json:"id" db:"id"`
 	SellerID           int64     `json:"seller_id" db:"seller_id"`
@@ -148,6 +178,7 @@ type TransactionEvidence struct {
 	UpdatedAt          time.Time `json:"-" db:"updated_at"`
 }
 
+// Shipping ...
 type Shipping struct {
 	TransactionEvidenceID int64     `json:"transaction_evidence_id" db:"transaction_evidence_id"`
 	Status                string    `json:"status" db:"status"`
@@ -164,6 +195,7 @@ type Shipping struct {
 	UpdatedAt             time.Time `json:"-" db:"updated_at"`
 }
 
+// Category ...
 type Category struct {
 	ID                 int    `json:"id" db:"id"`
 	ParentID           int    `json:"parent_id" db:"parent_id"`
@@ -2106,7 +2138,7 @@ func postBump(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now()
 	// last_bump + 3s > now
-	if seller.LastBump.Add(BumpChargeSeconds).After(now) {
+	if seller.LastBump.Add(BumpChargeSecond).After(now) {
 		outputErrorMsg(w, http.StatusForbidden, "Bump not allowed")
 		tx.Rollback()
 		return

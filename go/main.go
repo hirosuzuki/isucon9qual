@@ -419,22 +419,17 @@ func getUser(r *http.Request) (user User, errCode int, errMsg string) {
 		return user, http.StatusNotFound, "no session"
 	}
 
-	err := dbx.Get(&user, "SELECT * FROM `users` WHERE `id` = ?", userID)
-	if err == sql.ErrNoRows {
+	user, ok = userMap[userID.(int64)]
+	if !ok {
 		return user, http.StatusNotFound, "user not found"
-	}
-	if err != nil {
-		log.Print(err)
-		return user, http.StatusInternalServerError, "db error"
 	}
 
 	return user, http.StatusOK, ""
 }
 
 func getUserSimpleByID(q sqlx.Queryer, userID int64) (userSimple UserSimple, err error) {
-	user := User{}
-	err = sqlx.Get(q, &user, "SELECT * FROM `users` WHERE `id` = ?", userID)
-	if err != nil {
+	user, ok := userMap[userID]
+	if !ok {
 		return userSimple, err
 	}
 	userSimple.ID = user.ID
@@ -490,6 +485,7 @@ func getIndex(w http.ResponseWriter, r *http.Request) {
 
 var allCategories []Category = []Category{}
 var categoryMap map[int]Category = make(map[int]Category)
+var userMap map[int64]User = make(map[int64]User)
 
 func postInitialize(w http.ResponseWriter, r *http.Request) {
 	ri := reqInitialize{}
@@ -515,6 +511,12 @@ func postInitialize(w http.ResponseWriter, r *http.Request) {
 		categoryMap[category.ID] = category
 	}
 	log.Printf("categoryMap: %v\n", categoryMap)
+
+	var allUsers []User = []User{}
+	dbx.Select(&allUsers, "SELECT * FROM `users`")
+	for _, user := range allUsers {
+		userMap[user.ID] = user
+	}
 
 	_, err = dbx.Exec(
 		"INSERT INTO `configs` (`name`, `val`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `val` = VALUES(`val`)",
@@ -1360,17 +1362,9 @@ func postBuy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	seller := User{}
-	err = tx.Get(&seller, "SELECT * FROM `users` WHERE `id` = ? FOR UPDATE", targetItem.SellerID)
-	if err == sql.ErrNoRows {
+	seller, ok := userMap[targetItem.SellerID]
+	if !ok {
 		outputErrorMsg(w, http.StatusNotFound, "seller not found")
-		tx.Rollback()
-		return
-	}
-	if err != nil {
-		log.Print(err)
-
-		outputErrorMsg(w, http.StatusInternalServerError, "db error")
 		tx.Rollback()
 		return
 	}
@@ -2014,16 +2008,9 @@ func postSell(w http.ResponseWriter, r *http.Request) {
 
 	tx := dbx.MustBegin()
 
-	seller := User{}
-	err = tx.Get(&seller, "SELECT * FROM `users` WHERE `id` = ? FOR UPDATE", user.ID)
-	if err == sql.ErrNoRows {
+	seller, ok := userMap[user.ID]
+	if !ok {
 		outputErrorMsg(w, http.StatusNotFound, "user not found")
-		tx.Rollback()
-		return
-	}
-	if err != nil {
-		log.Print(err)
-		outputErrorMsg(w, http.StatusInternalServerError, "db error")
 		tx.Rollback()
 		return
 	}
@@ -2053,11 +2040,17 @@ func postSell(w http.ResponseWriter, r *http.Request) {
 	}
 
 	now := time.Now()
+
 	_, err = tx.Exec("UPDATE `users` SET `num_sell_items`=?, `last_bump`=? WHERE `id`=?",
 		seller.NumSellItems+1,
 		now,
 		seller.ID,
 	)
+
+	seller.NumSellItems++
+	seller.LastBump = now
+	userMap[seller.ID] = seller
+
 	if err != nil {
 		log.Print(err)
 
@@ -2122,16 +2115,9 @@ func postBump(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	seller := User{}
-	err = tx.Get(&seller, "SELECT * FROM `users` WHERE `id` = ? FOR UPDATE", user.ID)
-	if err == sql.ErrNoRows {
+	seller, ok := userMap[user.ID]
+	if !ok {
 		outputErrorMsg(w, http.StatusNotFound, "user not found")
-		tx.Rollback()
-		return
-	}
-	if err != nil {
-		log.Print(err)
-		outputErrorMsg(w, http.StatusInternalServerError, "db error")
 		tx.Rollback()
 		return
 	}
@@ -2159,6 +2145,10 @@ func postBump(w http.ResponseWriter, r *http.Request) {
 		now,
 		seller.ID,
 	)
+
+	seller.LastBump = now
+	userMap[seller.ID] = seller
+
 	if err != nil {
 		log.Print(err)
 		outputErrorMsg(w, http.StatusInternalServerError, "db error")
@@ -2307,11 +2297,9 @@ func postRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u := User{
-		ID:          userID,
-		AccountName: accountName,
-		Address:     address,
-	}
+	var u User
+	err = dbx.Get(&u, "SELECT * FROM `users` WHERE `id` = ?", userID)
+	userMap[userID] = u
 
 	session := getSession(r)
 	session.Values["user_id"] = u.ID

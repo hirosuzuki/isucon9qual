@@ -101,6 +101,23 @@ type Item struct {
 	UpdatedAt   time.Time `json:"-" db:"updated_at"`
 }
 
+type ExItem struct {
+	ID                        int64       `json:"id" db:"id"`
+	SellerID                  int64       `json:"seller_id" db:"seller_id"`
+	BuyerID                   int64       `json:"buyer_id" db:"buyer_id"`
+	Status                    string      `json:"status" db:"status"`
+	Name                      string      `json:"name" db:"name"`
+	Price                     int         `json:"price" db:"price"`
+	Description               string      `json:"description" db:"description"`
+	ImageName                 string      `json:"image_name" db:"image_name"`
+	CategoryID                int         `json:"category_id" db:"category_id"`
+	CreatedAt                 time.Time   `json:"-" db:"created_at"`
+	UpdatedAt                 time.Time   `json:"-" db:"updated_at"`
+	TransactionEvidenceID     interface{} `json:"-" db:"transaction_evidence_id"`
+	TransactionEvidenceStatus interface{} `json:"-" db:"testatus"`
+	ShippingStatus            interface{} `json:"-" db:"shstatus"`
+}
+
 type ItemSimple struct {
 	ID         int64       `json:"id"`
 	SellerID   int64       `json:"seller_id"`
@@ -841,6 +858,26 @@ func getUserItems(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(rui)
 }
 
+func nz(x interface{}) string {
+	s, ok := x.(string)
+	if ok {
+		return s
+	}
+	bs, ok := x.([]byte)
+	if ok {
+		return string(bs)
+	}
+	return ""
+}
+
+func nzint64(x interface{}) int64 {
+	s, ok := x.(int64)
+	if !ok {
+		return 0
+	}
+	return s
+}
+
 func getTransactions(w http.ResponseWriter, r *http.Request) {
 
 	user, errCode, errMsg := getUser(r)
@@ -872,18 +909,13 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tx := dbx.MustBegin()
-	items := []Item{}
+	items := []ExItem{}
 	if itemID > 0 && createdAt > 0 {
 		// paging
 		err := tx.Select(&items,
-			"SELECT * FROM `items` WHERE (`seller_id` = ? OR `buyer_id` = ?) AND `status` IN (?,?,?,?,?) AND (`created_at` < ?  OR (`created_at` <= ? AND `id` < ?)) ORDER BY `created_at` DESC, `id` DESC LIMIT ?",
+			"SELECT * FROM `exitems` WHERE (`seller_id` = ? OR `buyer_id` = ?) AND (`created_at` < ?  OR (`created_at` <= ? AND `id` < ?)) ORDER BY `created_at` DESC, `id` DESC LIMIT ?",
 			user.ID,
 			user.ID,
-			ItemStatusOnSale,
-			ItemStatusTrading,
-			ItemStatusSoldOut,
-			ItemStatusCancel,
-			ItemStatusStop,
 			time.Unix(createdAt, 0),
 			time.Unix(createdAt, 0),
 			itemID,
@@ -898,14 +930,9 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// 1st page
 		err := tx.Select(&items,
-			"SELECT * FROM `items` WHERE (`seller_id` = ? OR `buyer_id` = ?) AND `status` IN (?,?,?,?,?) ORDER BY `created_at` DESC, `id` DESC LIMIT ?",
+			"SELECT * FROM `exitems` WHERE (`seller_id` = ? OR `buyer_id` = ?) ORDER BY `created_at` DESC, `id` DESC LIMIT ?",
 			user.ID,
 			user.ID,
-			ItemStatusOnSale,
-			ItemStatusTrading,
-			ItemStatusSoldOut,
-			ItemStatusCancel,
-			ItemStatusStop,
 			TransactionsPerPage+1,
 		)
 		if err != nil {
@@ -937,17 +964,17 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 			Seller:   &seller,
 			// BuyerID
 			// Buyer
-			Status:      item.Status,
-			Name:        item.Name,
-			Price:       item.Price,
-			Description: item.Description,
-			ImageURL:    getImageURL(item.ImageName),
-			CategoryID:  item.CategoryID,
-			// TransactionEvidenceID
-			// TransactionEvidenceStatus
-			// ShippingStatus
-			Category:  &category,
-			CreatedAt: item.CreatedAt.Unix(),
+			Status:                    item.Status,
+			Name:                      item.Name,
+			Price:                     item.Price,
+			Description:               item.Description,
+			ImageURL:                  getImageURL(item.ImageName),
+			CategoryID:                item.CategoryID,
+			TransactionEvidenceID:     nzint64(item.TransactionEvidenceID),
+			TransactionEvidenceStatus: nz(item.TransactionEvidenceStatus),
+			ShippingStatus:            nz(item.ShippingStatus),
+			Category:                  &category,
+			CreatedAt:                 item.CreatedAt.Unix(),
 		}
 
 		if item.BuyerID != 0 {
@@ -959,36 +986,6 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 			}
 			itemDetail.BuyerID = item.BuyerID
 			itemDetail.Buyer = &buyer
-		}
-
-		transactionEvidence := TransactionEvidence{}
-		err = tx.Get(&transactionEvidence, "SELECT * FROM `transaction_evidences` WHERE `item_id` = ?", item.ID)
-		if err != nil && err != sql.ErrNoRows {
-			// It's able to ignore ErrNoRows
-			log.Print(err)
-			outputErrorMsg(w, http.StatusInternalServerError, "db error")
-			tx.Rollback()
-			return
-		}
-
-		if transactionEvidence.ID > 0 {
-			shipping := Shipping{}
-			err = tx.Get(&shipping, "SELECT * FROM `shippings` WHERE `transaction_evidence_id` = ?", transactionEvidence.ID)
-			if err == sql.ErrNoRows {
-				outputErrorMsg(w, http.StatusNotFound, "shipping not found")
-				tx.Rollback()
-				return
-			}
-			if err != nil {
-				log.Print(err)
-				outputErrorMsg(w, http.StatusInternalServerError, "db error")
-				tx.Rollback()
-				return
-			}
-
-			itemDetail.TransactionEvidenceID = transactionEvidence.ID
-			itemDetail.TransactionEvidenceStatus = transactionEvidence.Status
-			itemDetail.ShippingStatus = shipping.Status
 		}
 
 		itemDetails = append(itemDetails, itemDetail)

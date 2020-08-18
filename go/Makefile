@@ -10,6 +10,8 @@ isucari: *.go
 deploy:
 	ssh isucon@${SRVIP} sudo systemctl stop isucari.golang.service
 	scp isucari isucon@${SRVIP}:/home/isucon/isucari/webapp/go/isucari
+	scp 09_ex_schema.sql isucon@${SRVIP}:/home/isucon/isucari/webapp/sql/09_ex_schema.sql
+	scp init.sh isucon@${SRVIP}:/home/isucon/isucari/webapp/sql/init.sh
 	ssh isucon@${SRVIP} sudo systemctl start isucari.golang.service
 
 deploy-service:

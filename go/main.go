@@ -486,6 +486,9 @@ func getIndex(w http.ResponseWriter, r *http.Request) {
 var allCategories []Category = []Category{}
 var categoryMap map[int]Category = make(map[int]Category)
 var userMap map[int64]User = make(map[int64]User)
+var itemMap map[int64]Item = make(map[int64]Item)
+var transactionEvidenceMap map[int64]TransactionEvidence = make(map[int64]TransactionEvidence)
+var shippingMap map[int64]Shipping = make(map[int64]Shipping)
 
 func postInitialize(w http.ResponseWriter, r *http.Request) {
 	ri := reqInitialize{}
@@ -516,6 +519,24 @@ func postInitialize(w http.ResponseWriter, r *http.Request) {
 	dbx.Select(&allUsers, "SELECT * FROM `users`")
 	for _, user := range allUsers {
 		userMap[user.ID] = user
+	}
+
+	var allItems []Item = []Item{}
+	dbx.Select(&allItems, "SELECT * FROM `items`")
+	for _, item := range allItems {
+		itemMap[item.ID] = item
+	}
+
+	var allTransactionEvidences []TransactionEvidence = []TransactionEvidence{}
+	dbx.Select(&allTransactionEvidences, "SELECT * FROM `transaction_evidences`")
+	for _, transactionEvidence := range allTransactionEvidences {
+		transactionEvidenceMap[transactionEvidence.ItemID] = transactionEvidence
+	}
+
+	var allShippings []Shipping = []Shipping{}
+	dbx.Select(&allShippings, "SELECT * FROM `shippings`")
+	for _, shipping := range allShippings {
+		shippingMap[shipping.ItemID] = shipping
 	}
 
 	_, err = dbx.Exec(
@@ -994,34 +1015,11 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 			itemDetail.Buyer = &buyer
 		}
 
-		transactionEvidence := TransactionEvidence{}
-		err = tx.Get(&transactionEvidence, "SELECT * FROM `transaction_evidences` WHERE `item_id` = ?", item.ID)
-		if err != nil && err != sql.ErrNoRows {
-			// It's able to ignore ErrNoRows
-			log.Print(err)
-			outputErrorMsg(w, http.StatusInternalServerError, "db error")
-			tx.Rollback()
-			return
-		}
-
-		if transactionEvidence.ID > 0 {
-			shipping := Shipping{}
-			err = tx.Get(&shipping, "SELECT * FROM `shippings` WHERE `transaction_evidence_id` = ?", transactionEvidence.ID)
-			if err == sql.ErrNoRows {
-				outputErrorMsg(w, http.StatusNotFound, "shipping not found")
-				tx.Rollback()
-				return
-			}
-			if err != nil {
-				log.Print(err)
-				outputErrorMsg(w, http.StatusInternalServerError, "db error")
-				tx.Rollback()
-				return
-			}
-
+		transactionEvidence, ok := transactionEvidenceMap[item.ID]
+		if ok {
 			itemDetail.TransactionEvidenceID = transactionEvidence.ID
 			itemDetail.TransactionEvidenceStatus = transactionEvidence.Status
-			itemDetail.ShippingStatus = shipping.Status
+			itemDetail.ShippingStatus = shippingMap[item.ID].Status
 		}
 
 		itemDetails = append(itemDetails, itemDetail)
@@ -1205,9 +1203,10 @@ func postItemEdit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	now := time.Now()
 	_, err = tx.Exec("UPDATE `items` SET `price` = ?, `updated_at` = ? WHERE `id` = ?",
 		price,
-		time.Now(),
+		now,
 		itemID,
 	)
 	if err != nil {
@@ -1227,6 +1226,11 @@ func postItemEdit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tx.Commit()
+
+	item := itemMap[itemID]
+	item.Price = price
+	item.UpdatedAt = now
+	itemMap[itemID] = item
 
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	json.NewEncoder(w).Encode(&resItemEdit{
@@ -1359,7 +1363,9 @@ func postBuy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := tx.Exec("INSERT INTO `transaction_evidences` (`seller_id`, `buyer_id`, `status`, `item_id`, `item_name`, `item_price`, `item_description`,`item_category_id`,`item_root_category_id`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+	now := time.Now()
+
+	result, err := tx.Exec("INSERT INTO `transaction_evidences` (`seller_id`, `buyer_id`, `status`, `item_id`, `item_name`, `item_price`, `item_description`,`item_category_id`,`item_root_category_id`, `created_at`, `updated_at`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		targetItem.SellerID,
 		buyer.ID,
 		TransactionEvidenceStatusWaitShipping,
@@ -1369,6 +1375,8 @@ func postBuy(w http.ResponseWriter, r *http.Request) {
 		targetItem.Description,
 		category.ID,
 		category.ParentID,
+		now,
+		now,
 	)
 	if err != nil {
 		log.Print(err)
@@ -1390,7 +1398,7 @@ func postBuy(w http.ResponseWriter, r *http.Request) {
 	_, err = tx.Exec("UPDATE `items` SET `buyer_id` = ?, `status` = ?, `updated_at` = ? WHERE `id` = ?",
 		buyer.ID,
 		ItemStatusTrading,
-		time.Now(),
+		now,
 		targetItem.ID,
 	)
 	if err != nil {
@@ -1447,7 +1455,7 @@ func postBuy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = tx.Exec("INSERT INTO `shippings` (`transaction_evidence_id`, `status`, `item_name`, `item_id`, `reserve_id`, `reserve_time`, `to_address`, `to_name`, `from_address`, `from_name`, `img_binary`) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+	_, err = tx.Exec("INSERT INTO `shippings` (`transaction_evidence_id`, `status`, `item_name`, `item_id`, `reserve_id`, `reserve_time`, `to_address`, `to_name`, `from_address`, `from_name`, `img_binary`, `created_at`, `updated_at`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
 		transactionEvidenceID,
 		ShippingsStatusInitial,
 		targetItem.Name,
@@ -1459,6 +1467,8 @@ func postBuy(w http.ResponseWriter, r *http.Request) {
 		seller.Address,
 		seller.AccountName,
 		"",
+		now,
+		now,
 	)
 	if err != nil {
 		log.Print(err)
@@ -1469,6 +1479,43 @@ func postBuy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tx.Commit()
+
+	transactionEvidenceMap[targetItem.ID] = TransactionEvidence{
+		transactionEvidenceID,
+		targetItem.SellerID,
+		buyer.ID,
+		TransactionEvidenceStatusWaitShipping,
+		targetItem.ID,
+		targetItem.Name,
+		targetItem.Price,
+		targetItem.Description,
+		category.ID,
+		category.ParentID,
+		now,
+		now,
+	}
+
+	shippingMap[targetItem.ID] = Shipping{
+		transactionEvidenceID,
+		ShippingsStatusInitial,
+		targetItem.Name,
+		targetItem.ID,
+		scr.ReserveID,
+		scr.ReserveTime,
+		buyer.Address,
+		buyer.AccountName,
+		seller.Address,
+		seller.AccountName,
+		[]byte{},
+		now,
+		now,
+	}
+
+	item := itemMap[targetItem.ID]
+	item.BuyerID = buyer.ID
+	item.Status = ItemStatusTrading
+	item.UpdatedAt = now
+	itemMap[targetItem.ID] = item
 
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	json.NewEncoder(w).Encode(resBuy{TransactionEvidenceID: transactionEvidenceID})
@@ -1582,10 +1629,12 @@ func postShip(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	now := time.Now()
+
 	_, err = tx.Exec("UPDATE `shippings` SET `status` = ?, `img_binary` = ?, `updated_at` = ? WHERE `transaction_evidence_id` = ?",
 		ShippingsStatusWaitPickup,
 		img,
-		time.Now(),
+		now,
 		transactionEvidence.ID,
 	)
 	if err != nil {
@@ -1597,6 +1646,11 @@ func postShip(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tx.Commit()
+
+	shipping = shippingMap[itemID]
+	shipping.Status = ShippingsStatusWaitPickup
+	shipping.UpdatedAt = now
+	shippingMap[itemID] = shipping
 
 	rps := resPostShip{
 		Path:      fmt.Sprintf("/transactions/%d.png", transactionEvidence.ID),
@@ -1719,9 +1773,11 @@ func postShipDone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	now := time.Now()
+
 	_, err = tx.Exec("UPDATE `shippings` SET `status` = ?, `updated_at` = ? WHERE `transaction_evidence_id` = ?",
 		ssr.Status,
-		time.Now(),
+		now,
 		transactionEvidence.ID,
 	)
 	if err != nil {
@@ -1734,7 +1790,7 @@ func postShipDone(w http.ResponseWriter, r *http.Request) {
 
 	_, err = tx.Exec("UPDATE `transaction_evidences` SET `status` = ?, `updated_at` = ? WHERE `id` = ?",
 		TransactionEvidenceStatusWaitDone,
-		time.Now(),
+		now,
 		transactionEvidence.ID,
 	)
 	if err != nil {
@@ -1746,6 +1802,16 @@ func postShipDone(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tx.Commit()
+
+	shipping = shippingMap[itemID]
+	shipping.Status = ssr.Status
+	shipping.UpdatedAt = now
+	shippingMap[itemID] = shipping
+
+	transactionEvidence = transactionEvidenceMap[itemID]
+	transactionEvidence.Status = TransactionEvidenceStatusWaitDone
+	transactionEvidence.UpdatedAt = now
+	transactionEvidenceMap[itemID] = transactionEvidence
 
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	json.NewEncoder(w).Encode(resBuy{TransactionEvidenceID: transactionEvidence.ID})
@@ -1872,9 +1938,11 @@ func postComplete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	now := time.Now()
+
 	_, err = tx.Exec("UPDATE `transaction_evidences` SET `status` = ?, `updated_at` = ? WHERE `id` = ?",
 		TransactionEvidenceStatusDone,
-		time.Now(),
+		now,
 		transactionEvidence.ID,
 	)
 	if err != nil {
@@ -1887,7 +1955,7 @@ func postComplete(w http.ResponseWriter, r *http.Request) {
 
 	_, err = tx.Exec("UPDATE `items` SET `status` = ?, `updated_at` = ? WHERE `id` = ?",
 		ItemStatusSoldOut,
-		time.Now(),
+		now,
 		itemID,
 	)
 	if err != nil {
@@ -1899,6 +1967,16 @@ func postComplete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tx.Commit()
+
+	shipping = shippingMap[itemID]
+	shipping.Status = ShippingsStatusDone
+	shipping.UpdatedAt = now
+	shippingMap[itemID] = shipping
+
+	transactionEvidence = transactionEvidenceMap[itemID]
+	transactionEvidence.Status = TransactionEvidenceStatusDone
+	transactionEvidence.UpdatedAt = now
+	transactionEvidenceMap[itemID] = transactionEvidence
 
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	json.NewEncoder(w).Encode(resBuy{TransactionEvidenceID: transactionEvidence.ID})
@@ -1996,7 +2074,9 @@ func postSell(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := tx.Exec("INSERT INTO `items` (`seller_id`, `status`, `name`, `price`, `description`,`image_name`,`category_id`) VALUES (?, ?, ?, ?, ?, ?, ?)",
+	now := time.Now()
+
+	result, err := tx.Exec("INSERT INTO `items` (`seller_id`, `status`, `name`, `price`, `description`,`image_name`,`category_id`, `created_at`, `updated_at`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		seller.ID,
 		ItemStatusOnSale,
 		name,
@@ -2004,6 +2084,8 @@ func postSell(w http.ResponseWriter, r *http.Request) {
 		description,
 		imgName,
 		category.ID,
+		now,
+		now,
 	)
 	if err != nil {
 		log.Print(err)
@@ -2019,8 +2101,6 @@ func postSell(w http.ResponseWriter, r *http.Request) {
 		outputErrorMsg(w, http.StatusInternalServerError, "db error")
 		return
 	}
-
-	now := time.Now()
 
 	_, err = tx.Exec("UPDATE `users` SET `num_sell_items`=?, `last_bump`=? WHERE `id`=?",
 		seller.NumSellItems+1,
@@ -2145,6 +2225,11 @@ func postBump(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tx.Commit()
+
+	item := itemMap[targetItem.ID]
+	item.CreatedAt = now
+	item.UpdatedAt = now
+	itemMap[targetItem.ID] = item
 
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	json.NewEncoder(w).Encode(&resItemEdit{

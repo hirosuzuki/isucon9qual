@@ -1055,8 +1055,8 @@ func getItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	item := Item{}
-	err = dbx.Get(&item, "SELECT * FROM `items` WHERE `id` = ?", itemID)
+	item := ExItem{}
+	err = dbx.Get(&item, "SELECT * FROM `exitems` WHERE `id` = ?", itemID)
 	if err == sql.ErrNoRows {
 		outputErrorMsg(w, http.StatusNotFound, "item not found")
 		return
@@ -1107,32 +1107,16 @@ func getItem(w http.ResponseWriter, r *http.Request) {
 		itemDetail.BuyerID = item.BuyerID
 		itemDetail.Buyer = &buyer
 
-		transactionEvidence := TransactionEvidence{}
-		err = dbx.Get(&transactionEvidence, "SELECT * FROM `transaction_evidences` WHERE `item_id` = ?", item.ID)
-		if err != nil && err != sql.ErrNoRows {
-			// It's able to ignore ErrNoRows
-			log.Print(err)
-			outputErrorMsg(w, http.StatusInternalServerError, "db error")
-			return
+		if item.TransactionEvidenceID.Valid {
+			itemDetail.TransactionEvidenceID = item.TransactionEvidenceID.Int64
+		}
+		if item.TransactionEvidenceStatus.Valid {
+			itemDetail.TransactionEvidenceStatus = item.TransactionEvidenceStatus.String
+		}
+		if item.ShippingStatus.Valid {
+			itemDetail.ShippingStatus = item.ShippingStatus.String
 		}
 
-		if transactionEvidence.ID > 0 {
-			shipping := Shipping{}
-			err = dbx.Get(&shipping, "SELECT * FROM `shippings` WHERE `transaction_evidence_id` = ?", transactionEvidence.ID)
-			if err == sql.ErrNoRows {
-				outputErrorMsg(w, http.StatusNotFound, "shipping not found")
-				return
-			}
-			if err != nil {
-				log.Print(err)
-				outputErrorMsg(w, http.StatusInternalServerError, "db error")
-				return
-			}
-
-			itemDetail.TransactionEvidenceID = transactionEvidence.ID
-			itemDetail.TransactionEvidenceStatus = transactionEvidence.Status
-			itemDetail.ShippingStatus = shipping.Status
-		}
 	}
 
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")

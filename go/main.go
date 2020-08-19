@@ -1056,13 +1056,8 @@ func getItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	item := Item{}
-	err = dbx.Get(&item, "SELECT * FROM `items` WHERE `id` = ?", itemID)
-	if err == sql.ErrNoRows {
-		outputErrorMsg(w, http.StatusNotFound, "item not found")
-		return
-	}
-	if err != nil {
+	item, ok := itemMap[itemID]
+	if !ok {
 		log.Print(err)
 		outputErrorMsg(w, http.StatusInternalServerError, "db error")
 		return
@@ -1959,6 +1954,11 @@ func postComplete(w http.ResponseWriter, r *http.Request) {
 	transactionEvidence.UpdatedAt = now
 	transactionEvidenceMap[itemID] = transactionEvidence
 
+	item = itemMap[itemID]
+	item.Status = ItemStatusSoldOut
+	item.UpdatedAt = now
+	itemMap[itemID] = item
+
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	json.NewEncoder(w).Encode(resBuy{TransactionEvidenceID: transactionEvidence.ID})
 }
@@ -2100,6 +2100,21 @@ func postSell(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tx.Commit()
+
+	item := Item{
+		itemID,
+		seller.ID,
+		0,
+		ItemStatusOnSale,
+		name,
+		price,
+		description,
+		imgName,
+		category.ID,
+		now,
+		now,
+	}
+	itemMap[itemID] = item
 
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	json.NewEncoder(w).Encode(resSell{ID: itemID})

@@ -504,6 +504,7 @@ func getIndex(w http.ResponseWriter, r *http.Request) {
 var allCategories []Category = []Category{}
 var categoryMap map[int]Category = make(map[int]Category)
 var userMap map[int64]User = make(map[int64]User)
+var exItemMap map[int64]*ExItem = make(map[int64]*ExItem)
 
 func postInitialize(w http.ResponseWriter, r *http.Request) {
 	ri := reqInitialize{}
@@ -534,6 +535,12 @@ func postInitialize(w http.ResponseWriter, r *http.Request) {
 	dbx.Select(&allUsers, "SELECT * FROM `users`")
 	for _, user := range allUsers {
 		userMap[user.ID] = user
+	}
+
+	var allExItems []ExItem = []ExItem{}
+	dbx.Select(&allExItems, "SELECT * FROM `exitems`")
+	for _, exItem := range allExItems {
+		exItemMap[exItem.ID] = &exItem
 	}
 
 	_, err = dbx.Exec(
@@ -1056,15 +1063,10 @@ func getItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	item := ExItem{}
-	err = dbx.Get(&item, "SELECT * FROM `exitems` WHERE `id` = ?", itemID)
-	if err == sql.ErrNoRows {
+	item, ok := exItemMap[itemID]
+
+	if !ok {
 		outputErrorMsg(w, http.StatusNotFound, "item not found")
-		return
-	}
-	if err != nil {
-		log.Print(err)
-		outputErrorMsg(w, http.StatusInternalServerError, "db error")
 		return
 	}
 
@@ -1207,6 +1209,9 @@ func postItemEdit(w http.ResponseWriter, r *http.Request) {
 		tx.Rollback()
 		return
 	}
+
+	exItemMap[itemID].Price = price
+	exItemMap[itemID].UpdatedAt = time.Now()
 
 	tx.Commit()
 
@@ -1375,6 +1380,7 @@ func postBuy(w http.ResponseWriter, r *http.Request) {
 		time.Now(),
 		targetItem.ID,
 	)
+
 	if err != nil {
 		log.Print(err)
 
@@ -1465,6 +1471,13 @@ func postBuy(w http.ResponseWriter, r *http.Request) {
 		tx.Rollback()
 		return
 	}
+
+	exItemMap[targetItem.ID].BuyerID = buyer.ID
+	exItemMap[targetItem.ID].Status = ItemStatusTrading
+	exItemMap[targetItem.ID].UpdatedAt = time.Now()
+	exItemMap[targetItem.ID].TransactionEvidenceID = sql.NullInt64{transactionEvidenceID, true}
+	exItemMap[targetItem.ID].TransactionEvidenceStatus = sql.NullString{TransactionEvidenceStatusWaitShipping, true}
+	exItemMap[targetItem.ID].ShippingStatus = sql.NullString{ShippingsStatusInitial, true}
 
 	tx.Commit()
 
@@ -1593,6 +1606,8 @@ func postShip(w http.ResponseWriter, r *http.Request) {
 		tx.Rollback()
 		return
 	}
+
+	exItemMap[itemID].ShippingStatus = sql.NullString{ShippingsStatusWaitPickup, true}
 
 	tx.Commit()
 
@@ -1742,6 +1757,9 @@ func postShipDone(w http.ResponseWriter, r *http.Request) {
 		tx.Rollback()
 		return
 	}
+
+	exItemMap[itemID].TransactionEvidenceStatus = sql.NullString{TransactionEvidenceStatusWaitDone, true}
+	exItemMap[itemID].ShippingStatus = sql.NullString{ssr.Status, true}
 
 	tx.Commit()
 
@@ -1896,6 +1914,11 @@ func postComplete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	exItemMap[itemID].Status = ItemStatusSoldOut
+	exItemMap[itemID].UpdatedAt = time.Now()
+	exItemMap[itemID].TransactionEvidenceStatus = sql.NullString{TransactionEvidenceStatusDone, true}
+	exItemMap[itemID].ShippingStatus = sql.NullString{ShippingsStatusDone, true}
+
 	tx.Commit()
 
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
@@ -2003,6 +2026,7 @@ func postSell(w http.ResponseWriter, r *http.Request) {
 		imgName,
 		category.ID,
 	)
+
 	if err != nil {
 		log.Print(err)
 
@@ -2036,6 +2060,25 @@ func postSell(w http.ResponseWriter, r *http.Request) {
 		outputErrorMsg(w, http.StatusInternalServerError, "db error")
 		return
 	}
+
+	exitem := ExItem{
+		itemID,
+		seller.ID,
+		0,
+		ItemStatusOnSale,
+		name,
+		price,
+		description,
+		imgName,
+		category.ID,
+		time.Now(),
+		time.Now(),
+		sql.NullInt64{0, false},
+		sql.NullString{"", false},
+		sql.NullString{"", false},
+	}
+	exItemMap[itemID] = &exitem
+
 	tx.Commit()
 
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
@@ -2141,6 +2184,9 @@ func postBump(w http.ResponseWriter, r *http.Request) {
 		tx.Rollback()
 		return
 	}
+
+	exItemMap[targetItem.ID].CreatedAt = time.Now()
+	exItemMap[targetItem.ID].UpdatedAt = time.Now()
 
 	tx.Commit()
 

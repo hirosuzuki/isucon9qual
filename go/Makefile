@@ -18,6 +18,10 @@ deploy-service:
 	cat isucari.golang.service | ssh isucon@${SRVIP} "sudo tee /etc/systemd/system/isucari.golang.service"
 	ssh isucon@${SRVIP} sudo systemctl daemon-reload
 
+deploy-nginx:
+	cat nginx.conf | ssh isucon@${SRVIP} "sudo tee /etc/nginx/nginx.conf"
+	ssh isucon@${SRVIP} sudo systemctl restart nginx
+
 fetch-prof:
 	ssh isucon@${SRVIP} sudo pkill -INT isucari || true
 	scp isucon@${SRVIP}:/tmp/cpu.pprof cpu.pprof

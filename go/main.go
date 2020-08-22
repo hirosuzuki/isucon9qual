@@ -18,8 +18,8 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
+	tracer "github.com/hirosuzuki/go-isucon-tracer"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/profile"
 	goji "goji.io"
 	"goji.io/pat"
 	"golang.org/x/crypto/bcrypt"
@@ -330,9 +330,8 @@ func init() {
 }
 
 func main() {
-	x := profile.Start(profile.ProfilePath("/tmp/"))
-	defer x.Stop()
-	SQLLoggerInit("/tmp/sql.log")
+	tracer.Initialize()
+
 	host := os.Getenv("MYSQL_HOST")
 	if host == "" {
 		host = "127.0.0.1"

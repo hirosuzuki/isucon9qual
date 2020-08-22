@@ -43,3 +43,6 @@ login:
 
 parsesql:
 	ssh isucon@${SRVIP} cat /tmp/sql.log | ./parse_sql_log.py
+
+synclogs:
+	rsync -av isucon@${SRVIP}:/tmp/isucon/ logs/

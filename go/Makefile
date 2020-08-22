@@ -30,12 +30,13 @@ pprof:
 	go tool pprof -http="127.0.0.1:8020" cpu.pprof
 
 kataribe:
-	ssh isucon@${SRVIP} cat /var/log/nginx/kataribe.log | ${HOME}/go/bin/kataribe
+	ssh isucon@${SRVIP} cat /var/log/nginx/access.log | ${HOME}/go/bin/kataribe
 
 bench:
-	ssh isucon@${SRVIP} "sudo mv /var/log/nginx/kataribe.log /var/log/nginx/kataribe.log.`date +%Y%m%d%H%M%S` || true" 
+	ssh isucon@${SRVIP} "sudo mv /var/log/nginx/access.log /var/log/nginx/access.log.`date +%Y%m%d%H%M%S` || true" 
 	ssh isucon@${SRVIP} "sudo systemctl restart nginx"
 	ssh isucon@${SRVIP} "cd ./isucari && ./bin/benchmarker -target-url http://isucon9.catatsuy.org"
+	ssh isucon@${SRVIP} cp /var/log/nginx/access.log /tmp/isucon/current/access.log
 
 login:
 	ssh isucon@${SRVIP}

@@ -28,10 +28,11 @@ fetch-prof:
 	scp isucon@${SRVIP}:/tmp/cpu.pprof cpu.pprof
 
 pprof:
-	go tool pprof -http="127.0.0.1:8020" cpu.pprof
+	scp isucon@${SRVIP}:/tmp/cpu.pprof /tmp/cpu.pprof
+	go tool pprof -http="127.0.0.1:8020" /tmp/cpu.pprof
 
 kataribe:
-	ssh isucon@${SRVIP} cat /var/log/nginx/access.log | ${HOME}/go/bin/kataribe
+	ssh isucon@${SRVIP} cat /tmp/access.log | ${HOME}/go/bin/kataribe
 
 bench:
 	ssh isucon@${SRVIP} "cd ./isucari && ./bin/benchmarker -target-url http://isucon9.catatsuy.org"
@@ -43,4 +44,4 @@ parsesql:
 	ssh isucon@${SRVIP} cat /tmp/sql.log | ./parse_sql_log.py
 
 synclogs:
-	rsync -av isucon@${SRVIP}:/tmp/isucon/ logs/
+	rsync -av isucon@${SRVIP}:/tmp/isucon/logs/ logs/

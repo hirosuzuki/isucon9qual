@@ -12,6 +12,7 @@ deploy:
 	scp isucari isucon@${SRVIP}:/home/isucon/isucari/webapp/go/isucari
 	scp 09_ex_schema.sql isucon@${SRVIP}:/home/isucon/isucari/webapp/sql/09_ex_schema.sql
 	scp init.sh isucon@${SRVIP}:/home/isucon/isucari/webapp/sql/init.sh
+	scp start.sh isucon@${SRVIP}:/home/isucon/isucari/webapp/go/start.sh
 	ssh isucon@${SRVIP} sudo systemctl start isucari.golang.service
 
 deploy-service:
@@ -33,10 +34,7 @@ kataribe:
 	ssh isucon@${SRVIP} cat /var/log/nginx/access.log | ${HOME}/go/bin/kataribe
 
 bench:
-	ssh isucon@${SRVIP} "sudo mv /var/log/nginx/access.log /var/log/nginx/access.log.`date +%Y%m%d%H%M%S` || true" 
-	ssh isucon@${SRVIP} "sudo systemctl restart nginx"
 	ssh isucon@${SRVIP} "cd ./isucari && ./bin/benchmarker -target-url http://isucon9.catatsuy.org"
-	ssh isucon@${SRVIP} cp /var/log/nginx/access.log /tmp/isucon/current/access.log
 
 login:
 	ssh isucon@${SRVIP}

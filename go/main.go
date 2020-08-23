@@ -330,8 +330,6 @@ func init() {
 }
 
 func main() {
-	tracer.Initialize()
-
 	host := os.Getenv("MYSQL_HOST")
 	if host == "" {
 		host = "127.0.0.1"
@@ -513,6 +511,12 @@ func postInitialize(w http.ResponseWriter, r *http.Request) {
 		outputErrorMsg(w, http.StatusBadRequest, "json decode error")
 		return
 	}
+
+	tracer.Start()
+	startCmd := exec.Command("sh", "start.sh", tracer.TraceID)
+	startCmd.Stderr = os.Stderr
+	startCmd.Stdout = os.Stderr
+	startCmd.Start()
 
 	cmd := exec.Command("../sql/init.sh")
 	cmd.Stderr = os.Stderr

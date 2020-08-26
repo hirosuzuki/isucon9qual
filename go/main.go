@@ -2281,6 +2281,9 @@ func postLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cookie := &http.Cookie{Name: "user", Value: u.AccountName}
+	http.SetCookie(w, cookie)
+
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	json.NewEncoder(w).Encode(u)
 }
@@ -2344,6 +2347,9 @@ func postRegister(w http.ResponseWriter, r *http.Request) {
 		outputErrorMsg(w, http.StatusInternalServerError, "session error")
 		return
 	}
+
+	cookie := &http.Cookie{Name: "user", Value: u.AccountName}
+	http.SetCookie(w, cookie)
 
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	json.NewEncoder(w).Encode(u)

@@ -12,4 +12,4 @@ require (
 	google.golang.org/appengine v1.6.6 // indirect
 )
 
-replace github.com/hirosuzuki/go-isucon-tracer => ../go-isucon-tracer
+replace github.com/hirosuzuki/go-isucon-tracer => ../../go-isucon-tracer

@@ -19,7 +19,7 @@ sleep 1
 mkdir -p /tmp/isucon/logs/$TraceID
 cp /tmp/access.log /tmp/isucon/logs/$TraceID/access.log
 cp /tmp/cpu.pprof /tmp/isucon/logs/$TraceID/cpu.pprof
-cp /tmp/perfomance.log /tmp/isucon/logs/$TraceID/perfomance.log
+cp /tmp/perf.log /tmp/isucon/logs/$TraceID/perf.log
 cp /tmp/sql.log /tmp/isucon/logs/$TraceID/sql.log
 cp /tmp/vmstat.log /tmp/isucon/logs/$TraceID/vmstat.log
 rm /tmp/isucon/logs/latest

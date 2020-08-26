@@ -1401,22 +1401,26 @@ func postBuy(w http.ResponseWriter, r *http.Request) {
 	wg.Add(2)
 
 	go func() {
+		ph := tracer.Measure("postBuy", "APIShipmentCreate")
 		scr, err1 = APIShipmentCreate(getShipmentServiceURL(), &APIShipmentCreateReq{
 			ToAddress:   buyer.Address,
 			ToName:      buyer.AccountName,
 			FromAddress: seller.Address,
 			FromName:    seller.AccountName,
 		})
+		ph.End()
 		wg.Done()
 	}()
 
 	go func() {
+		ph := tracer.Measure("postBuy", "APIPaymentToken")
 		pstr, err2 = APIPaymentToken(getPaymentServiceURL(), &APIPaymentServiceTokenReq{
 			ShopID: PaymentServiceIsucariShopID,
 			Token:  rb.Token,
 			APIKey: PaymentServiceIsucariAPIKey,
 			Price:  targetItem.Price,
 		})
+		ph.End()
 		wg.Done()
 	}()
 
@@ -1585,9 +1589,12 @@ func postShip(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ph := tracer.Measure("postShip", "APIShipmentRequest")
 	img, err := APIShipmentRequest(getShipmentServiceURL(), &APIShipmentRequestReq{
 		ReserveID: shipping.ReserveID,
 	})
+	ph.End()
+
 	if err != nil {
 		log.Print(err)
 		outputErrorMsg(w, http.StatusInternalServerError, "failed to request to shipment service")
